@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToasts } from '../components/Toast';
-import { db } from '../lib/firebase';
+import { db } from '../lib/firebase.ts';
 import { doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 
 interface UserStats {
