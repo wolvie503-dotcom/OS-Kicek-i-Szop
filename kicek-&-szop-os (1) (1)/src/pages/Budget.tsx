@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Wallet, CheckCircle2, Plus, Minus, Trash2, X, Edit2, Check, TrendingDown, CreditCard, Calendar, History, Sparkles, Banknote 
+  Wallet, Plus, Minus, Trash2, Sparkles, Banknote 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
@@ -32,14 +32,6 @@ interface Expense {
   date: string;
 }
 
-interface Subscription {
-  id: string;
-  name: string;
-  amount: number;
-  paymentDay: number;
-  type: 'subscription' | 'installment';
-}
-
 export default function Budget() {
   const navigate = useNavigate();
   const { signOut } = useAuth();
@@ -48,14 +40,9 @@ export default function Budget() {
   // --- STATE ---
   const [sessions, setSessions] = useState<TutoringSession[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [monthlyLimit, setMonthlyLimit] = useState<number>(3000);
-  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
-  
-  const [isEditingLimit, setIsEditingLimit] = useState(false);
-  const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
 
-  // Form states - kluczowe dla uniknięcia błędów Builda
+  // Form states
   const [newSession, setNewSession] = useState<{ person: Person; student: string; rate: number }>({ person: 'Kicek 🐰', student: '', rate: 80 });
   const [newExpense, setNewExpense] = useState<{ name: string; amount: number; category: ExpenseCategory }>({ name: '', amount: 0, category: 'Jedzenie' });
 
@@ -66,12 +53,10 @@ export default function Budget() {
         const data = docSnap.data();
         setSessions(data.sessions || []);
         setExpenses(data.expenses || []);
-        setSubscriptions(data.subscriptions || []);
         setMonthlyLimit(data.monthlyLimit || 3000);
-        setCurrentMonth(data.currentMonth || new Date().toISOString().slice(0, 7));
       } else {
         setDoc(doc(db, "global", "budget"), {
-          sessions: [], expenses: [], subscriptions: [], monthlyLimit: 3000, currentMonth: new Date().toISOString().slice(0, 7)
+          sessions: [], expenses: [], monthlyLimit: 3000
         });
       }
     });
@@ -86,14 +71,12 @@ export default function Budget() {
   const totalTutoringEarned = useMemo(() => 
     sessions.filter(s => s.isPaid).reduce((acc, s) => acc + s.hours * s.rate, 0), [sessions]
   );
-  
-  const totalSubscriptions = useMemo(() => 
-    subscriptions.reduce((acc, s) => acc + s.amount, 0), [subscriptions]
-  );
 
   const totalOut = useMemo(() => 
-    expenses.reduce((acc, e) => acc + e.amount, 0) + totalSubscriptions, [expenses, totalSubscriptions]
+    expenses.reduce((acc, e) => acc + e.amount, 0), [expenses]
   );
+
+  const progress = Math.min(100, (totalOut / monthlyLimit) * 100);
 
   // --- ACTIONS ---
   const updateStudentHours = (id: string, delta: number) => {
@@ -141,8 +124,6 @@ export default function Budget() {
     updateFirebase({ expenses: expenses.filter(e => e.id !== id) });
   };
 
-  const progress = Math.min(100, (totalOut / monthlyLimit) * 100);
-
   return (
     <div className="min-h-screen bg-[#FDF8F3] pb-40">
       <ToastContainer toasts={toasts} removeToast={removeToast} />
@@ -186,14 +167,14 @@ export default function Budget() {
         </div>
 
         <section className="space-y-4">
-          <h3 className="text-lg font-black text-brand-primary uppercase px-2">Korepetycje</h3>
+          <h3 className="text-lg font-black text-brand-primary uppercase px-2 flex items-center gap-2"><Sparkles className="text-amber-500" size={18}/> Korepetycje</h3>
           <form onSubmit={handleAddSession} className="bg-white p-6 rounded-[2rem] border-2 border-stone-50 grid grid-cols-1 sm:grid-cols-4 gap-4">
-             <select value={newSession.person} onChange={e => setNewSession({...newSession, person: e.target.value as Person})} className="h-12 px-4 rounded-xl bg-stone-50 font-bold outline-none">
+             <select value={newSession.person} onChange={e => setNewSession({...newSession, person: e.target.value as Person})} className="h-12 px-4 rounded-xl bg-stone-50 font-bold">
                 <option value="Kicek 🐰">🐰 Kicek</option>
                 <option value="Szop 🦝">🦝 Szop</option>
              </select>
-             <input type="text" placeholder="Uczeń" value={newSession.student} onChange={e => setNewSession({...newSession, student: e.target.value})} className="h-12 px-4 rounded-xl bg-stone-50 font-bold outline-none" />
-             <input type="number" placeholder="Stawka" value={newSession.rate} onChange={e => setNewSession({...newSession, rate: parseInt(e.target.value)})} className="h-12 px-4 rounded-xl bg-stone-50 font-bold outline-none" />
+             <input type="text" placeholder="Uczeń" value={newSession.student} onChange={e => setNewSession({...newSession, student: e.target.value})} className="h-12 px-4 rounded-xl bg-stone-50 font-bold" />
+             <input type="number" placeholder="Stawka" value={newSession.rate} onChange={e => setNewSession({...newSession, rate: parseInt(e.target.value)})} className="h-12 px-4 rounded-xl bg-stone-50 font-bold" />
              <button type="submit" className="h-12 bg-orange-600 text-white font-black rounded-xl uppercase text-xs">Dodaj</button>
           </form>
 
@@ -220,8 +201,8 @@ export default function Budget() {
         <section className="space-y-4">
           <h3 className="text-lg font-black text-brand-primary uppercase px-2">Wydatki</h3>
           <form onSubmit={handleAddExpense} className="bg-white p-6 rounded-[2rem] border-2 border-stone-50 grid grid-cols-1 sm:grid-cols-3 gap-4">
-             <input type="text" placeholder="Co?" value={newExpense.name} onChange={e => setNewExpense({...newExpense, name: e.target.value})} className="h-12 px-4 rounded-xl bg-stone-50 font-bold outline-none" />
-             <input type="number" placeholder="Kwota" value={newExpense.amount || ''} onChange={e => setNewExpense({...newExpense, amount: parseFloat(e.target.value)})} className="h-12 px-4 rounded-xl bg-stone-50 font-bold outline-none" />
+             <input type="text" placeholder="Co?" value={newExpense.name} onChange={e => setNewExpense({...newExpense, name: e.target.value})} className="h-12 px-4 rounded-xl bg-stone-50 font-bold" />
+             <input type="number" placeholder="Kwota" value={newExpense.amount || ''} onChange={e => setNewExpense({...newExpense, amount: parseFloat(e.target.value)})} className="h-12 px-4 rounded-xl bg-stone-50 font-bold" />
              <button type="submit" className="h-12 bg-stone-800 text-white font-black rounded-xl uppercase text-xs">Dodaj</button>
           </form>
 
