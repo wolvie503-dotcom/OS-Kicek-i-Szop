@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToasts } from '../components/Toast';
+import { db } from '../lib/firebase';
+import { doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 
 interface UserStats {
   gold: number;
@@ -19,76 +21,78 @@ const StatsContext = createContext<StatsContextType | undefined>(undefined);
 export const StatsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { showToast } = useToasts();
   
-  const [kicekStats, setKicekStats] = useState<UserStats>(() => {
-    const saved = localStorage.getItem('kicek_stats');
-    return saved ? JSON.parse(saved) : { gold: 150, xp: 1250, level: 12 };
-  });
+  const [kicekStats, setKicekStats] = useState<UserStats>({ gold: 150, xp: 0, level: 1 });
+  const [szopStats, setSzopStats] = useState<UserStats>({ gold: 120, xp: 0, level: 1 });
 
-  const [szopStats, setSzopStats] = useState<UserStats>(() => {
-    const saved = localStorage.getItem('szop_stats');
-    return saved ? JSON.parse(saved) : { gold: 120, xp: 950, level: 9 };
-  });
-
+  // --- SYNCHRONIZACJA Z FIREBASE ---
   useEffect(() => {
-    localStorage.setItem('kicek_stats', JSON.stringify(kicekStats));
-  }, [kicekStats]);
+    const unsub = onSnapshot(doc(db, "global", "stats"), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.kicek) setKicekStats(data.kicek);
+        if (data.szop) setSzopStats(data.szop);
+      } else {
+        // Jeśli dokument nie istnieje, stwórz go z początkowymi danymi
+        setDoc(doc(db, "global", "stats"), {
+          kicek: kicekStats,
+          szop: szopStats
+        });
+      }
+    });
+    return () => unsub();
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem('szop_stats', JSON.stringify(szopStats));
-  }, [szopStats]);
+  const updateFirebaseStats = async (newKicek: UserStats, newSzop: UserStats) => {
+    await updateDoc(doc(db, "global", "stats"), {
+      kicek: newKicek,
+      szop: newSzop
+    });
+  };
 
   const processStats = (prev: UserStats, gold: number, xp: number) => {
     let newStats = { ...prev, gold: prev.gold + gold, xp: prev.xp + xp };
+    let levelsGained = 0;
     
     while (newStats.xp >= newStats.level * 100) {
       const xpNeeded = newStats.level * 100;
       newStats.xp -= xpNeeded;
       newStats.level += 1;
       newStats.gold += 100;
+      levelsGained++;
     }
     
-    return newStats;
+    return { newStats, levelsGained };
   };
 
-  useEffect(() => {
-    const prevLevel = Number(localStorage.getItem('kicek_level') || kicekStats.level);
-    if (kicekStats.level > prevLevel) {
-      showToast(`AWANS! Kicek 🐰 wskoczył na wyższy poziom (${kicekStats.level})! +${(kicekStats.level - prevLevel) * 100} 💰 bonusu! 🎊`, '✨');
-      localStorage.setItem('kicek_level', kicekStats.level.toString());
-    }
-  }, [kicekStats.level]);
+  const addRewards = async (nickname: 'Kicek 🐰' | 'Szop 🦝' | 'Razem 🫂', gold: number, xp: number) => {
+    let nextKicek = { ...kicekStats };
+    let nextSzop = { ...szopStats };
 
-  useEffect(() => {
-    const prevLevel = Number(localStorage.getItem('szop_level') || szopStats.level);
-    if (szopStats.level > prevLevel) {
-      showToast(`AWANS! Szop 🦝 wskoczył na wyższy poziom (${szopStats.level})! +${(szopStats.level - prevLevel) * 100} 💰 bonusu! 🎊`, '✨');
-      localStorage.setItem('szop_level', szopStats.level.toString());
-    }
-  }, [szopStats.level]);
-
-  const addRewards = (nickname: 'Kicek 🐰' | 'Szop 🦝' | 'Razem 🫂', gold: number, xp: number) => {
     if (nickname === 'Kicek 🐰' || nickname === 'Razem 🫂') {
-      setKicekStats(prev => processStats(prev, gold, xp));
+      const result = processStats(kicekStats, gold, xp);
+      nextKicek = result.newStats;
+      if (result.levelsGained > 0) showToast(`AWANS! Kicek 🐰 jest na poziomie ${nextKicek.level}! ✨`, '🎊');
     }
+    
     if (nickname === 'Szop 🦝' || nickname === 'Razem 🫂') {
-      setSzopStats(prev => processStats(prev, gold, xp));
+      const result = processStats(szopStats, gold, xp);
+      nextSzop = result.newStats;
+      if (result.levelsGained > 0) showToast(`AWANS! Szop 🦝 jest na poziomie ${nextSzop.level}! ✨`, '🎊');
     }
+
+    await updateFirebaseStats(nextKicek, nextSzop);
   };
 
   const spendGold = (nickname: 'Kicek 🐰' | 'Szop 🦝', amount: number) => {
-    let success = false;
-    if (nickname === 'Kicek 🐰') {
-      if (kicekStats.gold >= amount) {
-        setKicekStats(prev => ({ ...prev, gold: prev.gold - amount }));
-        success = true;
-      }
-    } else if (nickname === 'Szop 🦝') {
-      if (szopStats.gold >= amount) {
-        setSzopStats(prev => ({ ...prev, gold: prev.gold - amount }));
-        success = true;
-      }
+    if (nickname === 'Kicek 🐰' && kicekStats.gold >= amount) {
+      updateFirebaseStats({ ...kicekStats, gold: kicekStats.gold - amount }, szopStats);
+      return true;
+    } 
+    if (nickname === 'Szop 🦝' && szopStats.gold >= amount) {
+      updateFirebaseStats(kicekStats, { ...szopStats, gold: szopStats.gold - amount });
+      return true;
     }
-    return success;
+    return false;
   };
 
   return (
