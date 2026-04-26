@@ -124,5 +124,15 @@ export default function Budget() {
   };
 
   // --- FORMS STATE ---
-  const [newSession, setNewSession] = useState<{ person: Person; student: string; rate: number }>({ person: 'Kicek 🐰', student: '', rate: 80 });
-  const [newExpense, setNewExpense] = useState<{ name: string; amount: number; category: ExpenseCategory
+// Znajdź to miejsce i popraw na:
+const [newSession, setNewSession] = useState<{ person: Person; student: string; rate: number }>({ 
+  person: 'Kicek 🐰', 
+  student: '', 
+  rate: 80 
+});
+
+const [newExpense, setNewExpense] = useState<{ name: string; amount: number; category: ExpenseCategory }>({ 
+  name: '', 
+  amount: 0, 
+  category: 'Jedzenie' 
+});
