@@ -53,13 +53,11 @@ export default function Budget() {
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
   
   const [isEditingLimit, setIsEditingLimit] = useState(false);
-  const [editingRateId, setEditingRateId] = useState<string | null>(null);
   const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
 
-  // Form states (braki tutaj mogły powodować błąd Builda)
+  // Form states - kluczowe dla uniknięcia błędów Builda
   const [newSession, setNewSession] = useState<{ person: Person; student: string; rate: number }>({ person: 'Kicek 🐰', student: '', rate: 80 });
   const [newExpense, setNewExpense] = useState<{ name: string; amount: number; category: ExpenseCategory }>({ name: '', amount: 0, category: 'Jedzenie' });
-  const [newSub, setNewSub] = useState<{ name: string; amount: number; paymentDay: number; type: 'subscription' | 'installment' }>({ name: '', amount: 0, paymentDay: 1, type: 'subscription' });
 
   // 1. SYNC Z FIREBASE
   useEffect(() => {
@@ -115,7 +113,7 @@ export default function Budget() {
       id: Date.now().toString(), 
       person: newSession.person, 
       studentName: newSession.student, 
-      hours: 1, 
+      hours: 0, 
       rate: newSession.rate, 
       isPaid: false 
     };
@@ -176,7 +174,7 @@ export default function Budget() {
            </div>
         </section>
 
-        <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4">
            <div className="bg-emerald-50 p-6 rounded-3xl border-2 border-emerald-100 text-center">
               <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Wpływy</p>
               <p className="text-xl font-black text-emerald-600">+{totalTutoringEarned} zł</p>
@@ -187,61 +185,56 @@ export default function Budget() {
            </div>
         </div>
 
-        {/* Dodawanie sesji */}
         <section className="space-y-4">
-          <h3 className="text-lg font-black text-brand-primary uppercase px-2 flex items-center gap-2"><Sparkles className="text-amber-500" size={18}/> Korepetycje</h3>
+          <h3 className="text-lg font-black text-brand-primary uppercase px-2">Korepetycje</h3>
           <form onSubmit={handleAddSession} className="bg-white p-6 rounded-[2rem] border-2 border-stone-50 grid grid-cols-1 sm:grid-cols-4 gap-4">
-             <select value={newSession.person} onChange={e => setNewSession({...newSession, person: e.target.value as Person})} className="h-12 px-4 rounded-xl bg-stone-50 font-bold outline-none border-none">
+             <select value={newSession.person} onChange={e => setNewSession({...newSession, person: e.target.value as Person})} className="h-12 px-4 rounded-xl bg-stone-50 font-bold outline-none">
                 <option value="Kicek 🐰">🐰 Kicek</option>
                 <option value="Szop 🦝">🦝 Szop</option>
              </select>
-             <input type="text" placeholder="Uczeń" value={newSession.student} onChange={e => setNewSession({...newSession, student: e.target.value})} className="h-12 px-4 rounded-xl bg-stone-50 font-bold outline-none border-none" />
-             <input type="number" placeholder="Stawka" value={newSession.rate} onChange={e => setNewSession({...newSession, rate: parseInt(e.target.value)})} className="h-12 px-4 rounded-xl bg-stone-50 font-bold outline-none border-none" />
-             <button type="submit" className="h-12 bg-orange-600 text-white font-black rounded-xl uppercase text-xs tracking-widest">Dodaj</button>
+             <input type="text" placeholder="Uczeń" value={newSession.student} onChange={e => setNewSession({...newSession, student: e.target.value})} className="h-12 px-4 rounded-xl bg-stone-50 font-bold outline-none" />
+             <input type="number" placeholder="Stawka" value={newSession.rate} onChange={e => setNewSession({...newSession, rate: parseInt(e.target.value)})} className="h-12 px-4 rounded-xl bg-stone-50 font-bold outline-none" />
+             <button type="submit" className="h-12 bg-orange-600 text-white font-black rounded-xl uppercase text-xs">Dodaj</button>
           </form>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {sessions.map(s => (
-              <div key={s.id} className="bg-white p-5 rounded-3xl border-2 border-stone-50 flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-4">
-                  <button onClick={() => togglePaid(s.id)} className={cn("w-6 h-6 rounded-full border-2", s.isPaid ? "bg-emerald-500 border-emerald-500" : "border-stone-200")} />
-                  <div>
-                    <p className="font-bold text-brand-primary text-sm">{s.studentName}</p>
-                    <p className="text-[10px] text-stone-300 font-black uppercase">{s.person}</p>
-                  </div>
+              <div key={s.id} className="bg-white p-4 rounded-2xl border-2 border-stone-50 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <button onClick={() => togglePaid(s.id)} className={cn("w-5 h-5 rounded-full border-2", s.isPaid ? "bg-emerald-500 border-emerald-500" : "border-stone-200")} />
+                  <span className="font-bold text-brand-primary text-sm">{s.studentName}</span>
                 </div>
                 <div className="flex items-center gap-4">
-                   <div className="flex items-center gap-2 bg-stone-50 px-2 py-1 rounded-lg">
-                      <button onClick={() => updateStudentHours(s.id, -1)} className="text-stone-400 hover:text-orange-600"><Minus size={14}/></button>
-                      <span className="font-black text-xs w-4 text-center">{s.hours}h</span>
-                      <button onClick={() => updateStudentHours(s.id, 1)} className="text-stone-400 hover:text-orange-600"><Plus size={14}/></button>
+                   <div className="flex items-center gap-2">
+                      <button onClick={() => updateStudentHours(s.id, -1)} className="text-stone-300"><Minus size={14}/></button>
+                      <span className="font-black text-xs">{s.hours}h</span>
+                      <button onClick={() => updateStudentHours(s.id, 1)} className="text-stone-300"><Plus size={14}/></button>
                    </div>
-                   <p className="font-black text-brand-primary text-sm w-16 text-right">{s.hours * s.rate} zł</p>
+                   <p className="font-black text-brand-primary text-sm">{s.hours * s.rate} zł</p>
                 </div>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Dodawanie wydatków */}
         <section className="space-y-4">
-          <h3 className="text-lg font-black text-brand-primary uppercase px-2">Ostatnie Wydatki</h3>
+          <h3 className="text-lg font-black text-brand-primary uppercase px-2">Wydatki</h3>
           <form onSubmit={handleAddExpense} className="bg-white p-6 rounded-[2rem] border-2 border-stone-50 grid grid-cols-1 sm:grid-cols-3 gap-4">
-             <input type="text" placeholder="Co kupiono?" value={newExpense.name} onChange={e => setNewExpense({...newExpense, name: e.target.value})} className="h-12 px-4 rounded-xl bg-stone-50 font-bold outline-none border-none" />
-             <input type="number" placeholder="Kwota" value={newExpense.amount || ''} onChange={e => setNewExpense({...newExpense, amount: parseFloat(e.target.value)})} className="h-12 px-4 rounded-xl bg-stone-50 font-bold outline-none border-none" />
-             <button type="submit" className="h-12 bg-stone-800 text-white font-black rounded-xl uppercase text-xs tracking-widest">Dodaj wydatek</button>
+             <input type="text" placeholder="Co?" value={newExpense.name} onChange={e => setNewExpense({...newExpense, name: e.target.value})} className="h-12 px-4 rounded-xl bg-stone-50 font-bold outline-none" />
+             <input type="number" placeholder="Kwota" value={newExpense.amount || ''} onChange={e => setNewExpense({...newExpense, amount: parseFloat(e.target.value)})} className="h-12 px-4 rounded-xl bg-stone-50 font-bold outline-none" />
+             <button type="submit" className="h-12 bg-stone-800 text-white font-black rounded-xl uppercase text-xs">Dodaj</button>
           </form>
 
           <div className="bg-white rounded-3xl border-2 border-stone-50 overflow-hidden">
             {expenses.map(e => (
               <div key={e.id} className="flex justify-between items-center p-4 border-b last:border-0 hover:bg-stone-50">
                 <div>
-                  <p className="font-bold text-brand-primary">{e.name}</p>
+                  <p className="font-bold text-brand-primary text-sm">{e.name}</p>
                   <p className="text-[10px] text-stone-300 uppercase font-black">{new Date(e.date).toLocaleDateString()}</p>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="font-black text-red-500">-{e.amount} zł</span>
-                  <button onClick={() => deleteExpense(e.id)} className="text-stone-200 hover:text-red-500"><Trash2 size={18}/></button>
+                  <span className="font-black text-red-500 text-sm">-{e.amount} zł</span>
+                  <button onClick={() => deleteExpense(e.id)} className="text-stone-200 hover:text-red-500"><Trash2 size={16}/></button>
                 </div>
               </div>
             ))}
