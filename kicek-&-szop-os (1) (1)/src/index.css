@@ -1,0 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;900&family=JetBrains+Mono&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace;
+
+  --color-brand-primary: #451A03;    /* Very Dark Brown */
+  --color-brand-secondary: #EA580C;  /* Orange-600 */
+  --color-brand-accent: #D97706;     /* Amber-600 */
+  --color-brand-warm: #FDF8F3;       /* Very Light Warm */
+  --color-brand-muted: #F5F5F4;      /* Stone-100 */
+}
+
+@layer base {
+  body {
+    @apply bg-brand-warm text-brand-primary antialiased font-sans;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-6 py-4 bg-orange-600 text-white rounded-2xl font-bold shadow-lg shadow-orange-600/20 hover:bg-orange-700 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2;
+  }
+  
+  .glass-card {
+    @apply bg-white rounded-[2.5rem] shadow-2xl shadow-orange-900/5 border border-stone-100 transition-all duration-300;
+  }
+
+  .input-field {
+    @apply w-full px-5 py-4 rounded-2xl bg-stone-50 border border-stone-100 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all text-brand-primary placeholder:text-stone-400;
+  }
+
+  .badge-status {
+    @apply inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border;
+  }
+}
